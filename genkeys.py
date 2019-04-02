@@ -117,13 +117,14 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
         proc = multiprocessing.Process(target=generate_prime, args=(num_bits, queue))
         proc.start()
         processes.append(proc)
-    # grab the first 2 primes we get
-    p = queue.get()
-    print(p)
-    q = queue.get()
-    print(q)
+    # grab the first 2 primes we get until different
+    p, q = 0, 0
+    while p == q:
+        p = queue.get()
+        print("got p")
+        q = queue.get()
+        print("got q")
     assert p != q
-    print("got primes")
     for proc in processes:
         proc.kill()
     print("starting calculation")
@@ -145,15 +146,13 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
         if d > 0:
             break
     assert d > 0
-    assert (e * d) % phi == 1
+    assert ((e * d) % phi) == 1
 
     # return public, private pair
     return (e, n), (d, n), num_bits
 
 
 def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bits: int, name: str):
-    print("writing public: ", pu)
-    print("writing private: ", pr)
     public_key = {
         'length': n_bits,
         'e': base64.b64encode(str(pu[0]).encode('utf-8')).decode('utf-8'),
@@ -164,8 +163,6 @@ def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bit
         'd': base64.b64encode(str(pr[0]).encode('utf-8')).decode('utf-8'),
         'n': base64.b64encode(str(pr[1]).encode('utf-8')).decode('utf-8')
     }
-    print("public_key ", public_key)
-    print("private_key ", private_key)
     with open('{}.pub'.format(name), 'w') as f:
         json.dump(public_key, f)
     with open('{}.prv'.format(name), 'w') as f:
