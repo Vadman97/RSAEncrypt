@@ -11,39 +11,34 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 def base64_to_int(encoded: str) -> int:
-    print(encoded, base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
     return int(base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
 
 
 def pad_pt(pt: str) -> str:
-    # TODO(Vadim)
-    # return str(secrets.randbits(128)) + pt
     print("padding ", pt)
+    pt = base64.b64encode((secrets.randbits(256) | (1 << (256 - 1))).to_bytes(32, byteorder='big')).decode('utf-8') + pt
+    pt += base64.b64encode((secrets.randbits(256) | (1 << (256 - 1))).to_bytes(32, byteorder='big')).decode('utf-8')
+    print("padded ", pt)
     return pt
 
 
 def unpad_pt(pt: str) -> str:
-    # TODO(Vadim)
     print("unpadding ", pt)
+    pt = pt[44:-44]
+    print("unpadded ", pt)
     return pt
 
 
 def rsa_encrypt(pt: str, key_json: typing.Dict) -> bytes:
     e, n = map(base64_to_int, [key_json['e'], key_json['n']])
-    print('e ', e)
-    print('n ', n)
     c = int(pow(int.from_bytes(base64.b64encode(pad_pt(pt).encode('utf-8')), byteorder='big'), e, n))
-    print('c ', c)
     return base64.b64encode(c.to_bytes(math.ceil(c.bit_length() / 8), byteorder='big'))
 
 
 def rsa_decrypt(ct: bytes, key_json: typing.Dict) -> str:
     d, n = map(base64_to_int, [key_json['d'], key_json['n']])
-    print('d ', d)
-    print('n ', n)
     msg = int.from_bytes(base64.b64decode(ct), byteorder='big')
     dec = int(pow(msg, d, n))
-    print('decrypted ', dec)
     return unpad_pt(
         base64.b64decode(dec.to_bytes(math.ceil(dec.bit_length() / 8), byteorder='big').decode('utf-8')).decode(
             'utf-8'))
@@ -65,9 +60,7 @@ def decrypt(key_file: str, data_file: str, output_file: str):
             ).decryptor()
 
             with open(output_file, 'w') as outfile:
-                print(data)
                 data = base64.b64decode(data.encode('utf-8'))
-                print(data)
                 plain_text = decryptor.update(data) + decryptor.finalize()
                 outfile.write(plain_text.decode('utf-8'))
 

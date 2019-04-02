@@ -71,7 +71,7 @@ def is_prime(n):
 FIRST_PRIMES = [x for x in range(1000) if is_prime(x)]
 
 
-def generate_prime(num_bits: int, queue: multiprocessing.Queue) -> int:
+def generate_prime(num_bits: int, queue: multiprocessing.Queue):
     while True:
         prime = secrets.randbits(num_bits)
         # set MSB to make sure number is actually num_bits bits long
@@ -86,7 +86,6 @@ def generate_prime(num_bits: int, queue: multiprocessing.Queue) -> int:
 
         if is_prime(prime):
             queue.put(prime)
-            return prime
 
 
 # euclid's algorithm
