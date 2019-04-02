@@ -3,8 +3,12 @@
 import argparse
 import base64
 import json
+import multiprocessing
 import secrets
+import time
 import typing
+
+NUM_PROCESSORS = multiprocessing.cpu_count() - 1
 
 
 def is_even(n: int) -> bool:
@@ -59,18 +63,18 @@ def is_prime_miller_rabin(n, num_rounds=128):
 
 
 def is_prime(n):
-    if n <= 10000:
+    if n <= 1000:
         return basic_is_prime(n)
     return is_prime_miller_rabin(n)
 
 
-FIRST_PRIMES = [x for x in range(10000) if is_prime(x)]
+FIRST_PRIMES = [x for x in range(1000) if is_prime(x)]
 
 
-def generate_prime(num_bits) -> int:
+def generate_prime(num_bits: int, queue: multiprocessing.Queue) -> int:
     while True:
         prime = secrets.randbits(num_bits)
-        # set MSB to make sure number is actually 4096 bits long
+        # set MSB to make sure number is actually num_bits bits long
         prime |= 1 << (num_bits - 1)
         # set LSB to make sure number is odd
         prime |= 1
@@ -81,6 +85,7 @@ def generate_prime(num_bits) -> int:
                 continue
 
         if is_prime(prime):
+            queue.put(prime)
             return prime
 
 
@@ -106,13 +111,22 @@ def modular_multiplicative_inverse(a: int, b: int) -> int:
 
 
 def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typing.Tuple[int, int], int]:
-    p = generate_prime(num_bits)
+    print("generating primes p and q in parallel")
+    queue = multiprocessing.Queue()
+    processes = []
+    for _ in range(NUM_PROCESSORS):
+        proc = multiprocessing.Process(target=generate_prime, args=(num_bits, queue))
+        proc.start()
+        processes.append(proc)
+    # grab the first 2 primes we get
+    p = queue.get()
     print(p)
-    q = generate_prime(num_bits)
+    q = queue.get()
     print(q)
-    assert is_prime(p)
-    assert is_prime(q)
     assert p != q
+    print("got primes")
+    for proc in processes:
+        proc.kill()
     print("starting calculation")
 
     n = p * q
@@ -137,26 +151,32 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
 def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bits: int, name: str):
     public_key = {
         'length': n_bits,
-        'e': base64.b64encode(str(pu[0]).encode('utf8')).decode('utf8'),
-        'n': base64.b64encode(str(pu[1]).encode('utf8')).decode('utf8')
+        'e': base64.b64encode(str(pu[0]).encode('utf-8')).decode('utf-8'),
+        'n': base64.b64encode(str(pu[1]).encode('utf-8')).decode('utf-8')
     }
     private_key = {
         'length': n_bits,
-        'd': base64.b64encode(str(pr[0]).encode('utf8')).decode('utf8'),
-        'n': base64.b64encode(str(pr[1]).encode('utf8')).decode('utf8')
+        'd': base64.b64encode(str(pr[0]).encode('utf-8')).decode('utf-8'),
+        'n': base64.b64encode(str(pr[1]).encode('utf-8')).decode('utf-8')
     }
-    print(public_key)
-    print(private_key)
+    print("public_key ", public_key)
+    print("private_key ", private_key)
     with open('{}.pub'.format(name), 'w') as f:
-        f.write(json.dumps(public_key))
+        json.dump(public_key, f)
     with open('{}.prv'.format(name), 'w') as f:
-        f.write(json.dumps(private_key))
+        json.dump(public_key, f)
+
+
+def main(name: str):
+    pub, priv, length = generate_key_pair()
+    write_key_pair(pub, priv, length, name)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Generate RSA public and private keys.')
     parser.add_argument('name', metavar='name', type=str,
-                        help=': the name of the user for whom the keys will be generated')
+                        help='the name of the user for whom the keys will be generated')
     args = parser.parse_args()
-    pub, priv, length = generate_key_pair()
-    write_key_pair(pub, priv, length, args.name)
+    start_time = time.time()
+    main(args.name)
+    print("--- %s seconds ---" % (time.time() - start_time))
