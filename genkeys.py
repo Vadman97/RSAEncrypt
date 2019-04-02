@@ -107,8 +107,6 @@ def modular_multiplicative_inverse(a: int, b: int) -> int:
         old_s, s = s, old_s - quot * s
         old_t, t = t, old_t - quot * t
 
-    if old_s < 0:
-        raise ValueError("negative d")
     return old_s
 
 
@@ -143,7 +141,11 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
         max_div = gcd(e, phi)
 
     # find d as modular multiplicative inverse of e % phi
-    d = modular_multiplicative_inverse(e, phi)
+    for e, phi in [(e, phi), (e, -phi), (-e, phi), (-e, -phi)]:
+        d = modular_multiplicative_inverse(e, phi)
+        if d > 0:
+            break
+    assert d > 0
     assert (e * d) % phi == 1
 
     # return public, private pair

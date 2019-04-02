@@ -11,17 +11,20 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
 
 def base64_to_int(encoded: str) -> int:
+    print(encoded, base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
     return int(base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
 
 
 def pad_pt(pt: str) -> str:
     # TODO(Vadim)
     # return str(secrets.randbits(128)) + pt
+    print("padding ", pt)
     return pt
 
 
 def unpad_pt(pt: str) -> str:
     # TODO(Vadim)
+    print("unpadding ", pt)
     return pt
 
 
@@ -41,7 +44,9 @@ def rsa_decrypt(ct: bytes, key_json: typing.Dict) -> str:
     msg = int.from_bytes(base64.b64decode(ct), byteorder='big')
     dec = int(pow(msg, d, n))
     print('decrypted ', dec)
-    return unpad_pt(base64.b64encode(dec.to_bytes(dec.bit_length() // 8, byteorder='big').decode('utf-8')))
+    return unpad_pt(
+        base64.b64decode(dec.to_bytes(math.ceil(dec.bit_length() / 8), byteorder='big').decode('utf-8')).decode(
+            'utf-8'))
 
 
 def decrypt(key_file: str, data_file: str, output_file: str):
@@ -49,17 +54,22 @@ def decrypt(key_file: str, data_file: str, output_file: str):
         data, encrypted_aes_key = df.readlines()
         with open(key_file, 'r') as kf:
             key_json = json.load(kf)
-            decrypted_aes_key = json.loads(rsa_decrypt(encrypted_aes_key, key_json))
+            decrypted = json.loads(rsa_decrypt(encrypted_aes_key, key_json))
+            aes_key, iv = map(base64_to_int, [decrypted['aes_key'], decrypted['iv']])
+            tag = base64.b64decode(decrypted['tag'])
 
             decryptor = Cipher(
-                algorithms.AES(decrypted_aes_key['aes_key']),
-                modes.GCM(decrypted_aes_key['iv'], decrypted_aes_key['tag']),
+                algorithms.AES(aes_key.to_bytes(16, byteorder='big')),
+                modes.GCM(iv.to_bytes(12, byteorder='big'), tag),
                 backend=default_backend()
             ).decryptor()
 
             with open(output_file, 'w') as outfile:
+                print(data)
+                data = base64.b64decode(data.encode('utf-8'))
+                print(data)
                 plain_text = decryptor.update(data) + decryptor.finalize()
-                outfile.write(plain_text)
+                outfile.write(plain_text.decode('utf-8'))
 
 
 def encrypt(key_file: str, data_file: str, output_file: str):
@@ -72,14 +82,13 @@ def encrypt(key_file: str, data_file: str, output_file: str):
             backend=default_backend()
         ).encryptor()
         data_ct = base64.b64encode(enc.update(df.read().encode('utf-8')) + enc.finalize()).decode('utf-8')
-        tag = enc.tag
 
     with open(key_file, 'r') as kf:
         key_json = json.load(kf)
         aes_key_ct = rsa_encrypt(json.dumps({
             'aes_key': base64.b64encode(str(aes_encryption_key).encode('utf-8')).decode('utf-8'),
             'iv': base64.b64encode(str(iv).encode('utf-8')).decode('utf-8'),
-            'tag': base64.b64encode(str(tag).encode('utf-8')).decode('utf-8'),
+            'tag': base64.b64encode(enc.tag).decode('utf-8'),
         }), key_json).decode('utf-8')
 
     with open(output_file, 'w') as outfile:
