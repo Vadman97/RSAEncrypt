@@ -149,6 +149,8 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
 
 
 def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bits: int, name: str):
+    print("writing public: ", pu)
+    print("writing private: ", pr)
     public_key = {
         'length': n_bits,
         'e': base64.b64encode(str(pu[0]).encode('utf-8')).decode('utf-8'),
