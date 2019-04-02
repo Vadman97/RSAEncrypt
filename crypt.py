@@ -35,7 +35,7 @@ def rsa_encrypt(pt: str, key_json: typing.Dict) -> bytes:
 
 
 def rsa_decrypt(ct: bytes, key_json: typing.Dict) -> str:
-    d, n = key_json['d'], key_json['n']
+    d, n = map(base64_to_int, [key_json['d'], key_json['n']])
     print('d ', d)
     print('n ', n)
     msg = int.from_bytes(base64.b64decode(ct), byteorder='big')

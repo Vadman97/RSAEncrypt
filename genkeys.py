@@ -107,6 +107,8 @@ def modular_multiplicative_inverse(a: int, b: int) -> int:
         old_s, s = s, old_s - quot * s
         old_t, t = t, old_t - quot * t
 
+    if old_s < 0:
+        raise ValueError("negative d")
     return old_s
 
 
@@ -166,7 +168,7 @@ def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bit
     with open('{}.pub'.format(name), 'w') as f:
         json.dump(public_key, f)
     with open('{}.prv'.format(name), 'w') as f:
-        json.dump(public_key, f)
+        json.dump(private_key, f)
 
 
 def main(name: str):
