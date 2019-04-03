@@ -14,24 +14,24 @@ def base64_to_int(encoded: str) -> int:
     return int(base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
 
 
-def pad_pt(pt: str) -> str:
+def rsa_pad_pt(pt: str) -> str:
     print("padding ", pt)
-    pt = base64.b64encode((secrets.randbits(256) | (1 << (256 - 1))).to_bytes(32, byteorder='big')).decode('utf-8') + pt
-    pt += base64.b64encode((secrets.randbits(256) | (1 << (256 - 1))).to_bytes(32, byteorder='big')).decode('utf-8')
+    pt = base64.b64encode((secrets.randbits(512) | (1 << (512 - 1))).to_bytes(64, byteorder='big')).decode('utf-8') + pt
+    pt += base64.b64encode((secrets.randbits(512) | (1 << (512 - 1))).to_bytes(64, byteorder='big')).decode('utf-8')
     print("padded ", pt)
     return pt
 
 
-def unpad_pt(pt: str) -> str:
+def rsa_unpad_pt(pt: str) -> str:
     print("unpadding ", pt)
-    pt = pt[44:-44]
+    pt = pt[88:-88]
     print("unpadded ", pt)
     return pt
 
 
 def rsa_encrypt(pt: str, key_json: typing.Dict) -> bytes:
     e, n = map(base64_to_int, [key_json['e'], key_json['n']])
-    c = int(pow(int.from_bytes(base64.b64encode(pad_pt(pt).encode('utf-8')), byteorder='big'), e, n))
+    c = int(pow(int.from_bytes(base64.b64encode(rsa_pad_pt(pt).encode('utf-8')), byteorder='big'), e, n))
     return base64.b64encode(c.to_bytes(math.ceil(c.bit_length() / 8), byteorder='big'))
 
 
@@ -39,7 +39,7 @@ def rsa_decrypt(ct: bytes, key_json: typing.Dict) -> str:
     d, n = map(base64_to_int, [key_json['d'], key_json['n']])
     msg = int.from_bytes(base64.b64decode(ct), byteorder='big')
     dec = int(pow(msg, d, n))
-    return unpad_pt(
+    return rsa_unpad_pt(
         base64.b64decode(dec.to_bytes(math.ceil(dec.bit_length() / 8), byteorder='big').decode('utf-8')).decode(
             'utf-8'))
 
@@ -110,3 +110,5 @@ if __name__ == "__main__":
     e_flag = args.encrypt and not args.decrypt
     main(e_flag, args.key_name, args.data_file, args.output_file)
     print("--- %s seconds ---" % (time.time() - start_time))
+
+# TODO(Vadim) check if i need error messages for invalid key, invalid tag etc
