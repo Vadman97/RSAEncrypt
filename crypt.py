@@ -1,3 +1,5 @@
+#!/usr/bin/python3.7
+
 import argparse
 import base64
 import json
