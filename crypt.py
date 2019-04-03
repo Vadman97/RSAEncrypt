@@ -1,16 +1,21 @@
-#!/usr/bin/python3.7
+#!/usr/bin/python3.6
 
 import argparse
 import base64
 import json
-import math
 import secrets
+import sys
 import time
 import typing
 
+import math
 from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+MIN_PYTHON = (3, 6)
+if sys.version_info < MIN_PYTHON:
+    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
 
 
 class RSAKeyInvalid(Exception):
