@@ -59,14 +59,14 @@ def decrypt(key_file: str, data_file: str, output_file: str):
                 backend=default_backend()
             ).decryptor()
 
-            with open(output_file, 'w') as outfile:
+            with open(output_file, 'wb') as outfile:
                 data = base64.b64decode(data.encode('utf-8'))
                 plain_text = decryptor.update(data) + decryptor.finalize()
-                outfile.write(plain_text.decode('utf-8'))
+                outfile.write(plain_text)
 
 
 def encrypt(key_file: str, data_file: str, output_file: str):
-    with open(data_file, 'r') as df:
+    with open(data_file, 'rb') as df:
         aes_encryption_key = secrets.randbits(128)
         iv = secrets.randbits(96)
         enc = Cipher(
@@ -74,7 +74,7 @@ def encrypt(key_file: str, data_file: str, output_file: str):
             modes.GCM(iv.to_bytes(12, byteorder='big')),
             backend=default_backend()
         ).encryptor()
-        data_ct = base64.b64encode(enc.update(df.read().encode('utf-8')) + enc.finalize()).decode('utf-8')
+        data_ct = base64.b64encode(enc.update(df.read()) + enc.finalize())
 
     with open(key_file, 'r') as kf:
         key_json = json.load(kf)
@@ -82,11 +82,11 @@ def encrypt(key_file: str, data_file: str, output_file: str):
             'aes_key': base64.b64encode(str(aes_encryption_key).encode('utf-8')).decode('utf-8'),
             'iv': base64.b64encode(str(iv).encode('utf-8')).decode('utf-8'),
             'tag': base64.b64encode(enc.tag).decode('utf-8'),
-        }), key_json).decode('utf-8')
+        }), key_json)
 
-    with open(output_file, 'w') as outfile:
+    with open(output_file, 'wb') as outfile:
         outfile.write(data_ct)
-        outfile.write('\n')
+        outfile.write('\n'.encode('utf-8'))
         outfile.write(aes_key_ct)
 
 

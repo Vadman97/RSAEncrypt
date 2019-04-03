@@ -143,9 +143,12 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
     # find d as modular multiplicative inverse of e % phi
     for e, phi in [(e, phi), (e, -phi), (-e, phi), (-e, -phi)]:
         d = modular_multiplicative_inverse(e, phi)
-        if d > 0 and (e * d) % phi == 1:
+        if d > 0 and e > 0 and (e * d) % phi == 1:
             break
     assert d > 0
+    assert e > 0
+    assert n > 0
+    assert phi > 0
     assert ((e * d) % phi) == 1
 
     # return public, private pair
