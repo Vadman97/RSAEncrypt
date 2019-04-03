@@ -109,12 +109,12 @@ def modular_multiplicative_inverse(a: int, b: int) -> int:
     return old_s
 
 
-def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typing.Tuple[int, int], int]:
+def generate_key_pair(key_size=2048) -> typing.Tuple[typing.Tuple[int, int], typing.Tuple[int, int], int]:
     print("generating primes p and q in parallel")
     queue = multiprocessing.Queue()
     processes = []
     for _ in range(NUM_PROCESSORS):
-        proc = multiprocessing.Process(target=generate_prime, args=(num_bits, queue))
+        proc = multiprocessing.Process(target=generate_prime, args=(key_size // 2, queue))
         proc.start()
         processes.append(proc)
     # grab the first 2 primes we get until different
@@ -145,6 +145,12 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
         d = modular_multiplicative_inverse(e, phi)
         if d > 0 and e > 0 and (e * d) % phi == 1:
             break
+
+    if not(d > 0 and e > 0 and (e * d) % phi == 1):
+        # try again if it failed
+        print("retrying with new primes")
+        return generate_key_pair(key_size)
+
     assert d > 0
     assert e > 0
     assert n > 0
@@ -152,7 +158,7 @@ def generate_key_pair(num_bits=2048) -> typing.Tuple[typing.Tuple[int, int], typ
     assert ((e * d) % phi) == 1
 
     # return public, private pair
-    return (e, n), (d, n), num_bits
+    return (e, n), (d, n), key_size
 
 
 def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bits: int, name: str):
@@ -173,7 +179,7 @@ def write_key_pair(pu: typing.Tuple[int, int], pr: typing.Tuple[int, int], n_bit
 
 
 def main(name: str):
-    pub, priv, length = generate_key_pair()
+    pub, priv, length = generate_key_pair(2048)
     write_key_pair(pub, priv, length, name)
 
 

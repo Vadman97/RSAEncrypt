@@ -6,32 +6,48 @@ import secrets
 import time
 import typing
 
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+
+class RSAKeyInvalid(Exception):
+    def __init__(self, msg: str):
+        super(RSAKeyInvalid, self).__init__(msg)
 
 
 def base64_to_int(encoded: str) -> int:
     return int(base64.b64decode(encoded.encode('utf-8')).decode('utf-8'))
 
 
-def rsa_pad_pt(pt: str) -> str:
+def rsa_pad_pt(pt: str, key_length: int) -> str:
     print("padding ", pt)
-    pt = base64.b64encode((secrets.randbits(512) | (1 << (512 - 1))).to_bytes(64, byteorder='big')).decode('utf-8') + pt
-    pt += base64.b64encode((secrets.randbits(512) | (1 << (512 - 1))).to_bytes(64, byteorder='big')).decode('utf-8')
+    pt_bit_length = int.from_bytes(pt.encode('utf-8'), byteorder='big').bit_length()
+    remaining_padding = key_length - pt_bit_length
+    start_bits = remaining_padding - 736
+    pt = base64.b64encode(secrets.randbits(start_bits).to_bytes(
+        math.ceil(start_bits / 8), byteorder='big')
+    ).decode('utf-8') + pt
     print("padded ", pt)
     return pt
 
 
-def rsa_unpad_pt(pt: str) -> str:
+def rsa_unpad_pt(pt: str, key_length: int) -> str:
     print("unpadding ", pt)
-    pt = pt[88:-88]
+    if key_length == 2048:
+        pt = pt[20:]
+    elif key_length == 4096:
+        pt = pt[360:]
+    elif key_length == 8192:
+        pt = pt[720:]
     print("unpadded ", pt)
     return pt
 
 
 def rsa_encrypt(pt: str, key_json: typing.Dict) -> bytes:
     e, n = map(base64_to_int, [key_json['e'], key_json['n']])
-    c = int(pow(int.from_bytes(base64.b64encode(rsa_pad_pt(pt).encode('utf-8')), byteorder='big'), e, n))
+    c = int(
+        pow(int.from_bytes(rsa_pad_pt(pt, key_json['length']).encode('utf-8'), byteorder='big'), e, n))
     return base64.b64encode(c.to_bytes(math.ceil(c.bit_length() / 8), byteorder='big'))
 
 
@@ -39,9 +55,12 @@ def rsa_decrypt(ct: bytes, key_json: typing.Dict) -> str:
     d, n = map(base64_to_int, [key_json['d'], key_json['n']])
     msg = int.from_bytes(base64.b64decode(ct), byteorder='big')
     dec = int(pow(msg, d, n))
-    return rsa_unpad_pt(
-        base64.b64decode(dec.to_bytes(math.ceil(dec.bit_length() / 8), byteorder='big').decode('utf-8')).decode(
-            'utf-8'))
+    try:
+        return rsa_unpad_pt(dec.to_bytes(math.ceil(dec.bit_length() / 8), byteorder='big').decode('utf-8'),
+                            key_json['length'])
+    except UnicodeDecodeError:
+        pass
+    raise RSAKeyInvalid("could not decrypt AES key using RSA - is your private key correct?")
 
 
 def decrypt(key_file: str, data_file: str, output_file: str):
@@ -61,8 +80,11 @@ def decrypt(key_file: str, data_file: str, output_file: str):
 
             with open(output_file, 'wb') as outfile:
                 data = base64.b64decode(data.encode('utf-8'))
-                plain_text = decryptor.update(data) + decryptor.finalize()
-                outfile.write(plain_text)
+                try:
+                    plain_text = decryptor.update(data) + decryptor.finalize()
+                    outfile.write(plain_text)
+                except InvalidTag:
+                    raise RSAKeyInvalid("tag does not match - encrypted AES key was tampered with")
 
 
 def encrypt(key_file: str, data_file: str, output_file: str):
@@ -110,5 +132,3 @@ if __name__ == "__main__":
     e_flag = args.encrypt and not args.decrypt
     main(e_flag, args.key_name, args.data_file, args.output_file)
     print("--- %s seconds ---" % (time.time() - start_time))
-
-# TODO(Vadim) check if i need error messages for invalid key, invalid tag etc
