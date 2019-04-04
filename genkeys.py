@@ -5,10 +5,15 @@ import base64
 import json
 import multiprocessing
 import secrets
+import sys
 import time
 import typing
 
 NUM_PROCESSORS = multiprocessing.cpu_count() - 1
+
+MIN_PYTHON = (3, 6)
+if sys.version_info < MIN_PYTHON:
+    sys.exit("Python %s.%s or later is required.\n" % MIN_PYTHON)
 
 
 def is_even(n: int) -> bool:
