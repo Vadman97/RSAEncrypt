@@ -28,26 +28,26 @@ def base64_to_int(encoded: str) -> int:
 
 
 def rsa_pad_pt(pt: str, key_length: int) -> str:
-    print("padding ", pt)
+    # print("padding ", pt)
     pt_bit_length = int.from_bytes(pt.encode('utf-8'), byteorder='big').bit_length()
     remaining_padding = key_length - pt_bit_length
     start_bits = remaining_padding - 736
     pt = base64.b64encode(secrets.randbits(start_bits).to_bytes(
         math.ceil(start_bits / 8), byteorder='big')
     ).decode('utf-8') + pt
-    print("padded ", pt)
+    # print("padded ", pt)
     return pt
 
 
 def rsa_unpad_pt(pt: str, key_length: int) -> str:
-    print("unpadding ", pt)
+    # print("unpadding ", pt)
     if key_length == 2048:
         pt = pt[20:]
     elif key_length == 4096:
         pt = pt[360:]
     elif key_length == 8192:
         pt = pt[720:]
-    print("unpadded ", pt)
+    # print("unpadded ", pt)
     return pt
 
 

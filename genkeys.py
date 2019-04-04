@@ -136,17 +136,18 @@ def generate_key_pair(key_size=2048) -> typing.Tuple[typing.Tuple[int, int], typ
     e = -1
     max_div = -1
     # coprime if gcd == 1
-    while max_div != 1:
+    while max_div != 1 or e < 0:
         e = secrets.randbelow(phi - 1) + 1
         max_div = gcd(e, phi)
 
     # find d as modular multiplicative inverse of e % phi
     for e, phi in [(e, phi), (e, -phi), (-e, phi), (-e, -phi)]:
         d = modular_multiplicative_inverse(e, phi)
-        if d > 0 and e > 0 and (e * d) % phi == 1:
+        if d > 0 and (e * d) % phi == 1:
             break
 
-    if not(d > 0 and e > 0 and (e * d) % phi == 1):
+    e, phi, d = abs(e), abs(phi), abs(d)
+    if not (d > 0 and (e * d) % phi == 1):
         # try again if it failed
         print("retrying with new primes")
         return generate_key_pair(key_size)
